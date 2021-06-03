@@ -84,6 +84,13 @@ func main() {
 			http.Error(w, "Code not found", http.StatusBadRequest)
 			return
 		}
+
+		// DY mod START
+		mElapsedTime = time.Since(mStartTime)
+		// log.Printf("Ctime : %d: %s", numTokenCreation, mElapsedTime)
+		mStartTime = time.Now()
+		// DY mod END
+
 		token, err := config.Exchange(context.Background(), code, oauth2.SetAuthURLParam("code_verifier", "s256example"))
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -150,7 +157,8 @@ func main() {
 
 		// DY mod START
 		mElapsedTime = time.Since(mStartTime)
-		log.Printf("Rtime : %s", mElapsedTime)
+		log.Printf("Rtime : %d: %s", numResourceAccess, mElapsedTime)
+		// log.Printf("Rtime : %s", mElapsedTime)
 		numResourceAccess -= 1
 		time.Sleep(time.Millisecond)
 		http.Get("http://localhost:9094/try")

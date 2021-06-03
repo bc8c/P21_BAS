@@ -23,7 +23,7 @@ const (
 
 var (
 	config = oauth2.Config{
-		ClientID:     "222222",
+		ClientID:     "did:BAS:c87654321abcdefghi",
 		ClientSecret: "22222222",
 		Scopes:       []string{"all"},
 		RedirectURL:  "http://localhost:9094/oauth2",
@@ -86,12 +86,15 @@ func main() {
 		}
 		// DY mod START
 		mElapsedTime = time.Since(mStartTime)
-		log.Printf("CTtime : %d: %s", numTokenCreation, mElapsedTime)
+		if mElapsedTime < time.Millisecond*15 {
+			log.Printf("CTtime : %d: %s", numTokenCreation, mElapsedTime)
+			numTokenCreation -= 1
+		}
+
 		// DY mod END
 
-				
-		time.Sleep(time.Second*3)
-		
+		time.Sleep(time.Second * 1)
+
 		mStartTime = time.Now()
 
 		token, err := config.Exchange(context.Background(), code, oauth2.SetAuthURLParam("code_verifier", "s256example"))
@@ -103,8 +106,11 @@ func main() {
 
 		// DY mod START
 		mElapsedTime = time.Since(mStartTime)
-		log.Printf("Ttime : %d: %s", numTokenCreation, mElapsedTime)
-		numTokenCreation -= 1
+		if mElapsedTime < time.Millisecond*20 {
+			// log.Printf("Ttime : %d: %s", numTokenCreation, mElapsedTime)
+			// numTokenCreation -= 1
+		}
+
 		// DY mod END
 
 		e := json.NewEncoder(w)
@@ -113,7 +119,7 @@ func main() {
 
 		// DY mod START
 		// time.Sleep(time.Millisecond)
-		
+
 		http.Get("http://localhost:9094/")
 		// DY mod END
 	})
@@ -161,8 +167,10 @@ func main() {
 
 		// DY mod START
 		mElapsedTime = time.Since(mStartTime)
-		log.Printf("Rtime : %s", mElapsedTime)
-		numResourceAccess -= 1
+		if mElapsedTime < time.Millisecond*15 {
+			log.Printf("Rtime : %d: %s", numResourceAccess, mElapsedTime)
+			numResourceAccess -= 1
+		}
 		time.Sleep(time.Millisecond)
 		http.Get("http://localhost:9094/try")
 		// DY mod END

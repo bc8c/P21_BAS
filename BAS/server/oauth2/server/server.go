@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
@@ -11,14 +12,16 @@ import (
 	"net/url"
 	"strings"
 	"time"
-	"bytes"
 
 	"bserver/oauth2"
 	"bserver/oauth2/errors"
-	"bserver/oauth2/server/bcconector"
+	"bserver/oauth2/server/bcconnector"
 
 	"github.com/hyperledger/fabric-sdk-go/pkg/gateway"
 )
+
+// const TestUserDID = "did:BAS:u12345678abcdefghi"
+const TestUserDID = "UserDID"
 
 // NewDefaultServer create a default authorization server
 func NewDefaultServer(manager oauth2.Manager) *Server {
@@ -31,8 +34,6 @@ func NewServer(cfg *Config, manager oauth2.Manager) *Server {
 		Config:  cfg,
 		Manager: manager,
 	}
-
-
 
 	// default handler
 	srv.ClientInfoHandler = ClientBasicHandler
@@ -50,7 +51,6 @@ func NewServer(cfg *Config, manager oauth2.Manager) *Server {
 	srv.contract = bcconnector.NewConnector()
 	// bcconnector.ReadCodeInfo(srv.contract,"TestCID")
 	// DY mod END
-
 
 	return srv
 }
@@ -71,7 +71,7 @@ type Server struct {
 	ExtensionFieldsHandler       ExtensionFieldsHandler
 	AccessTokenExpHandler        AccessTokenExpHandler
 	AuthorizeScopeHandler        AuthorizeScopeHandler
-	contract				     *gateway.Contract
+	contract                     *gateway.Contract
 }
 
 func (s *Server) redirectError(w http.ResponseWriter, req *AuthorizeRequest, err error) error {
@@ -171,6 +171,10 @@ func (s *Server) CheckCodeChallengeMethod(ccm oauth2.CodeChallengeMethod) bool {
 func (s *Server) ValidationAuthorizeRequest(r *http.Request) (*AuthorizeRequest, error) {
 	redirectURI := r.FormValue("redirect_uri")
 	clientID := r.FormValue("client_id")
+	// log.Printf("befor clientID : %s \n", clientID)
+	// bytes, _ := base64.StdEncoding.DecodeString(clientID)
+	// log.Printf("The bytes clientID : %s \n", bytes)
+	// clientID = string(bytes)
 	if !(r.Method == "GET" || r.Method == "POST") ||
 		clientID == "" {
 		return nil, errors.ErrInvalidRequest
@@ -210,6 +214,7 @@ func (s *Server) ValidationAuthorizeRequest(r *http.Request) (*AuthorizeRequest,
 		CodeChallenge:       cc,
 		CodeChallengeMethod: ccm,
 	}
+
 	return req, nil
 }
 
@@ -290,7 +295,8 @@ func (s *Server) HandleAuthorizeRequest(w http.ResponseWriter, r *http.Request) 
 	// }
 	// req.UserID = userID
 
-	req.UserID = "UserDID"
+	// req.UserID = "UserDID"
+	req.UserID = TestUserDID
 	// DY mod END
 
 	// specify the scope of authorization
@@ -349,23 +355,30 @@ func (s *Server) HandleAuthorizeRequest(w http.ResponseWriter, r *http.Request) 
 
 	// CreateCodeInfo Test
 	// mHashV := [32]byte{0}
-	mHashV := genHashS256(mCode)	
+	mHashV := genHashS256(mCode)
 	var mID bytes.Buffer
 	mID.WriteString("CI_")
 	mID.WriteString(mHashV)
 	mCodeInfo := bcconnector.CodeInfo{
 		InfoType:        "CodeInfo",
 		ID_code:         mID.String(),
-		DID_RO:          "req.UserID",
-		DID_client:      "req.ClientID",
-		Scope:           "req.Scope",
+		DID_RO:          req.UserID,
+		DID_client:      req.ClientID,
+		Scope:           req.Scope,
 		Hash_code:       mHashV,
 		Time_issueed:    time.Now().String(),
 		URI_Redirection: req.RedirectURI,
 		Condition:       "Available",
 		ID_token:        "",
 	}
-	// log.Printf("%s\n", mCodeInfo)	
+	log.Printf("%s\n", mCodeInfo)
+
+	log.Printf("-------------Duplicate test------------")
+	go bcconnector.ReadCodeInfo(s.contract, mCodeInfo.ID_code)
+	time.Sleep(time.Millisecond * 2)
+	log.Printf("Id_Code :%s\n", mCodeInfo)
+	log.Printf("-------------Duplicate test------------")
+
 	go bcconnector.CreateCodeInfo(s.contract, mCodeInfo)
 
 	// Record the CodeInfo In BAS
@@ -401,6 +414,9 @@ func (s *Server) ValidationTokenRequest(r *http.Request) (oauth2.GrantType, *oau
 	}
 
 	clientID, clientSecret, err := s.ClientInfoHandler(r)
+	// DY mod START
+	clientID, _ = url.QueryUnescape(clientID)
+	// DY mod END
 	if err != nil {
 		return "", nil, err
 	}
@@ -423,12 +439,15 @@ func (s *Server) ValidationTokenRequest(r *http.Request) (oauth2.GrantType, *oau
 		if s.Config.ForcePKCE && tgr.CodeVerifier == "" {
 			return "", nil, errors.ErrInvalidRequest
 		}
+		log.Printf("oauth2.AuthorizationCode")
 	case oauth2.PasswordCredentials:
 		tgr.Scope = r.FormValue("scope")
 		username, password := r.FormValue("username"), r.FormValue("password")
+		log.Printf("oauth2.PasswordCredentials0:")
 		if username == "" || password == "" {
 			return "", nil, errors.ErrInvalidRequest
 		}
+		log.Printf("oauth2.PasswordCredentials1:")
 
 		userID, err := s.PasswordAuthorizationHandler(username, password)
 		if err != nil {
@@ -437,6 +456,7 @@ func (s *Server) ValidationTokenRequest(r *http.Request) (oauth2.GrantType, *oau
 			return "", nil, errors.ErrInvalidGrant
 		}
 		tgr.UserID = userID
+		log.Printf("oauth2.PasswordCredentials2:")
 	case oauth2.ClientCredentials:
 		tgr.Scope = r.FormValue("scope")
 	case oauth2.Refreshing:
@@ -579,7 +599,9 @@ func (s *Server) GetTokenData(ti oauth2.TokenInfo) map[string]interface{} {
 func (s *Server) HandleTokenRequest(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
 
+	log.Printf("-------------Heeer------------")
 	gt, tgr, err := s.ValidationTokenRequest(r)
+	log.Printf("-------------%s------------", err)
 	if err != nil {
 		return s.tokenError(w, err)
 	}
@@ -595,11 +617,12 @@ func (s *Server) HandleTokenRequest(w http.ResponseWriter, r *http.Request) erro
 	// DY mod END
 
 	ti, err := s.GetAccessToken(ctx, gt, tgr)
+	log.Printf("-------------%s------------", err)
 	if err != nil {
 		return s.tokenError(w, err)
 	}
 
-	// DY mod START	
+	// DY mod START
 	// Retrieve CodeInfo = mCodeInfo
 
 	mCHashV := genHashS256(tgr.Code)
@@ -607,10 +630,9 @@ func (s *Server) HandleTokenRequest(w http.ResponseWriter, r *http.Request) erro
 	mCID.WriteString("CI_")
 	mCID.WriteString(mCHashV)
 	var mCodeInfo bcconnector.CodeInfo
-	mCodeInfo = bcconnector.ReadCodeInfo(s.contract,mCID.String())
+	mCodeInfo = bcconnector.ReadCodeInfo(s.contract, mCID.String())
 	log.Printf("-------------CodeInfo------------")
 	log.Printf("Id_Code :%s\n", mCodeInfo.ID_code)
-
 
 	var mToken = ti.GetAccess()
 	log.Printf("-------------TokenInfo------------")
@@ -627,7 +649,6 @@ func (s *Server) HandleTokenRequest(w http.ResponseWriter, r *http.Request) erro
 	log.Printf("%s\n", mToken)
 	log.Printf("Hash_code : %s\n", genHashS256(mToken))
 	log.Printf("-------------mAuthorizeData------------")
-
 
 	// CreateTokenInfo Test
 	mTHashV := genHashS256(mToken)
@@ -653,9 +674,9 @@ func (s *Server) HandleTokenRequest(w http.ResponseWriter, r *http.Request) erro
 
 	// Record the TokenInfo In BAS (without goroutine)
 	// bcconnector.CreateTokenInfo(s.contract, mTokenInfo)
-	
-	// Record the CodeInfo In BAS	
-	
+
+	// Record the CodeInfo In BAS
+
 	// DY mod END
 
 	return s.token(w, s.GetTokenData(ti), nil)
@@ -743,7 +764,10 @@ func (s *Server) ValidationBearerToken(r *http.Request) error {
 	// LoadAccessToken  -> Retrieve TokenInfo = mCodeInfo
 	return s.LoadAccessTokeninBAS(accessToken)
 	// DY mod END
-	
+
+	// log.Printf(accessToken)
+	// return nil
+
 	// return s.Manager.LoadAccessToken(ctx, accessToken)
 }
 
@@ -756,13 +780,13 @@ func (s *Server) LoadAccessTokeninBAS(accessToken string) error {
 	mTID.WriteString(mTHashV)
 	var mTokenInfo bcconnector.TokenInfo
 	log.Printf("Id_Token :%s\n", mTID.String())
-	mTokenInfo = bcconnector.ReadTokenInfo(s.contract,mTID.String())
-	
+	mTokenInfo = bcconnector.ReadTokenInfo(s.contract, mTID.String())
+
 	log.Printf("Id_Token :%s\n", mTokenInfo.ID_token)
 
-	if mTokenInfo.Hash_token != mTHashV{
-		return  errors.ErrInvalidAccessToken
+	if mTokenInfo.Hash_token != mTHashV {
+		return errors.ErrInvalidAccessToken
 	}
-	
+
 	return nil
 }

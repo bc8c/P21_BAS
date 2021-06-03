@@ -10,7 +10,6 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
-	
 
 	"bserver/oauth2/errors"
 	"bserver/oauth2/generates"
@@ -18,6 +17,7 @@ import (
 	"bserver/oauth2/models"
 	"bserver/oauth2/server"
 	"bserver/oauth2/store"
+
 	"github.com/go-session/session"
 )
 
@@ -31,7 +31,7 @@ var (
 
 func init() {
 	flag.BoolVar(&dumpvar, "d", true, "Dump requests and responses")
-	flag.StringVar(&idvar, "i", "222222", "The client id being passed in")
+	flag.StringVar(&idvar, "i", "did:BAS:c87654321abcdefghi", "The client id being passed in")
 	flag.StringVar(&secretvar, "s", "22222222", "The client secret being passed in")
 	flag.StringVar(&domainvar, "r", "http://localhost:9094", "The domain of the redirect url")
 	flag.IntVar(&portvar, "p", 9096, "the base port for the server")
@@ -138,7 +138,7 @@ func main() {
 		// if err != nil {
 		// 	http.Error(w, err.Error(), http.StatusBadRequest)
 		// 	return
-		// }		
+		// }
 
 		// data := map[string]interface{}{
 		// 	"expires_in": int64(token.GetAccessCreateAt().Add(token.GetAccessExpiresIn()).Sub(time.Now()).Seconds()),
@@ -168,7 +168,6 @@ func main() {
 		e.SetIndent("", "  ")
 		e.Encode(data)
 
-		
 		// >>log
 		log.Printf("In /test")
 	})

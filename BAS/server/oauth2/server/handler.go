@@ -59,6 +59,7 @@ func ClientFormHandler(r *http.Request) (string, string, error) {
 // ClientBasicHandler get client data from basic authorization
 func ClientBasicHandler(r *http.Request) (string, string, error) {
 	username, password, ok := r.BasicAuth()
+
 	if !ok {
 		return "", "", errors.ErrInvalidClient
 	}
