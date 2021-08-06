@@ -110,8 +110,8 @@ func main() {
 		// DY mod START
 		mElapsedTime = time.Since(mStartTime)
 		if mElapsedTime < time.Millisecond*20 {
-			// log.Printf("Ttime : %d: %s", numTokenCreation, mElapsedTime)
-			// numTokenCreation -= 1
+			log.Printf("Ttime : %d: %s", numTokenCreation, mElapsedTime)
+			numTokenCreation -= 1
 		}
 
 		// DY mod END

@@ -374,12 +374,13 @@ func (s *Server) HandleAuthorizeRequest(w http.ResponseWriter, r *http.Request) 
 	log.Printf("%s\n", mCodeInfo)
 
 	log.Printf("-------------Duplicate test------------")
-	go bcconnector.ReadCodeInfo(s.contract, mCodeInfo.ID_code)
-	time.Sleep(time.Millisecond * 2)
-	log.Printf("Id_Code :%s\n", mCodeInfo)
+	// go bcconnector.ReadCodeInfo(s.contract, mCodeInfo.ID_code)
+	// time.Sleep(time.Millisecond * 2)
+	// log.Printf("Id_Code :%s\n", mCodeInfo)
 	log.Printf("-------------Duplicate test------------")
 
-	go bcconnector.CreateCodeInfo(s.contract, mCodeInfo)
+	// go bcconnector.CreateCodeInfo(s.contract, mCodeInfo)
+	bcconnector.CreateCodeInfo(s.contract, mCodeInfo)
 
 	// Record the CodeInfo In BAS
 
@@ -670,10 +671,10 @@ func (s *Server) HandleTokenRequest(w http.ResponseWriter, r *http.Request) erro
 	}
 
 	// Record the TokenInfo In BAS ( goroutine )
-	go bcconnector.CreateTokenInfo(s.contract, mTokenInfo)
+	// go bcconnector.CreateTokenInfo(s.contract, mTokenInfo)
 
 	// Record the TokenInfo In BAS (without goroutine)
-	// bcconnector.CreateTokenInfo(s.contract, mTokenInfo)
+	bcconnector.CreateTokenInfo(s.contract, mTokenInfo)
 
 	// Record the CodeInfo In BAS
 
